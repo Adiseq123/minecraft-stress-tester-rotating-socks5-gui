@@ -1,5 +1,7 @@
 # 🎮 Minecraft Server Stress Tester GUI (Rotating SOCKS5 Backconnect Proxy)
 
+<img width="1536" height="834" alt="image" src="https://github.com/user-attachments/assets/3bedf3a2-896a-4365-bde7-fddc101fedb5" />
+
 Zaawansowana aplikacja oparta na **Electron + Node.js + Mineflayer**, przeznaczona do kontrolowanego testowania wydajności i stabilności serwerów Minecraft z wykorzystaniem **rotacyjnego proxy SOCKS5 typu Backconnect**.
 
 Zamiast zarządzania dużą listą pojedynczych proxy aplikacja korzysta z jednego punktu dostępowego proxy, który może przydzielać różne adresy IP dla kolejnych połączeń.
