@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <title>Minecraft Stress Tester GUI</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: #121214; color: #e1e1e6; padding: 20px; }
+    .container { display: flex; flex-direction: column; gap: 20px; max-width: 1000px; margin: 0 auto; }
+    h1 { font-size: 22px; color: #00e676; text-align: center; text-transform: uppercase; letter-spacing: 1px; }
+    
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    .card { background: #1e1e24; border: 1fr solid #292932; border-radius: 8px; padding: 15px; }
+    .card h2 { font-size: 14px; color: #8257e5; margin-bottom: 12px; text-transform: uppercase; }
+    
+    .form-group { margin-bottom: 10px; }
+    .form-group label { display: block; font-size: 12px; color: #a8a8b3; margin-bottom: 4px; }
+    .form-group input { width: 100%; background: #121214; border: 1px solid #292932; color: #fff; padding: 8px 10px; border-radius: 4px; font-size: 13px; }
+    .form-group input:focus { outline: none; border-color: #8257e5; }
+    
+    .stats-bar { display: flex; justify-content: space-around; background: #1e1e24; padding: 15px; border-radius: 8px; text-align: center; }
+    .stat-item .value { font-size: 24px; font-weight: bold; color: #00e676; }
+    .stat-item .label { font-size: 11px; color: #a8a8b3; text-transform: uppercase; }
+
+    .buttons { display: flex; gap: 10px; }
+    button { flex: 1; padding: 12px; border: none; border-radius: 6px; font-weight: bold; font-size: 14px; cursor: pointer; transition: 0.2s; }
+    #btnStart { background: #00e676; color: #121214; }
+    #btnStart:hover { background: #00c853; }
+    #btnStop { background: #ff5252; color: #fff; }
+    #btnStop:hover { background: #d50000; }
+
+    .console-card { background: #0d0d11; border: 1px solid #292932; border-radius: 8px; padding: 15px; }
+    .console-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .console-header h2 { font-size: 14px; color: #00e676; }
+    .console-header button { padding: 4px 10px; font-size: 11px; background: #292932; color: #ccc; flex: none; }
+    
+    #console { height: 200px; overflow-y: auto; font-family: 'Consolas', monospace; font-size: 12px; line-height: 1.5; background: #000; padding: 10px; border-radius: 4px; }
+    .log-info { color: #82aaff; }
+    .log-success { color: #c3e88d; }
+    .log-warn { color: #ffcb6b; }
+    .log-error { color: #ff5370; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>🎮 Minecraft Stress Tester GUI (Rotating SOCKS5 Proxy)</h1>
+
+    <div class="stats-bar">
+      <div class="stat-item"><div class="value" id="statActive">0</div><div class="label">Aktywne Boty</div></div>
+      <div class="stat-item"><div class="value" id="statJoined">0</div><div class="label">Połączenia Sumarycznie</div></div>
+      <div class="stat-item"><div class="value" id="statErrors" style="color: #ff5252;">0</div><div class="label">Błędy / Wyrzucenia</div></div>
+    </div>
+
+    <div class="grid">
+      <!-- Serwer MC -->
+      <div class="card">
+        <h2>Ustawienia Serwera Minecraft</h2>
+        <div class="form-group"><label>Domena / IP Serwera</label><input type="text" id="serverHost" value="domenaserwera.pl"></div>
+        <div class="form-group"><label>Port Serwera</label><input type="number" id="serverPort" value="25565"></div>
+        <div class="form-group"><label>Wersja MC (np. 1.20.1 lub puste dla Auto)</label><input type="text" id="mcVersion" value="1.20.1"></div>
+        <div class="form-group"><label>Liczba Botów</label><input type="number" id="botCount" value="10"></div>
+        <div class="form-group"><label>Hasło Rejestracji Botów</label><input type="text" id="botPassword" value="TestPass123!"></div>
+      </div>
+
+      <!-- Rotacyjne Proxy SOCKS5 -->
+      <div class="card">
+        <h2>Rotacyjne Proxy SOCKS5 (Backconnect)</h2>
+        <div class="form-group"><label>Host Proxy Endpoint</label><input type="text" id="proxyHost" value="p.webshare.io"></div>
+        <div class="form-group"><label>Port Proxy</label><input type="number" id="proxyPort" value="80"></div>
+        <div class="form-group"><label>Użytkownik (userId)</label><input type="text" id="proxyUser" placeholder="Wpisz userId"></div>
+        <div class="form-group"><label>Hasło (password)</label><input type="password" id="proxyPass" placeholder="Wpisz password"></div>
+        <div class="form-group"><label>Opóźnienie Wejścia Bota (ms)</label><input type="number" id="spawnDelay" value="3000"></div>
+      </div>
+    </div>
+
+    <div class="buttons">
+      <button id="btnStart">🟢 URUCHOM TEST</button>
+      <button id="btnStop">🔴 ZATRZYMAJ TEST</button>
+    </div>
+
+    <div class="console-card">
+      <div class="console-header">
+        <h2>Konsola Zdarzeń</h2>
+        <button id="btnClearConsole">Wyczyść Konsolę</button>
+      </div>
+      <div id="console"></div>
+    </div>
+  </div>
+
+  <script>
+    const { ipcRenderer } = require('electron')
+
+    const btnStart = document.getElementById('btnStart')
+    const btnStop = document.getElementById('btnStop')
+    const btnClearConsole = document.getElementById('btnClearConsole')
+    const consoleDiv = document.getElementById('console')
+
+    btnStart.addEventListener('click', () => {
+      const config = {
+        serverHost: document.getElementById('serverHost').value,
+        serverPort: document.getElementById('serverPort').value,
+        mcVersion: document.getElementById('mcVersion').value,
+        botCount: document.getElementById('botCount').value,
+        botPassword: document.getElementById('botPassword').value,
+        proxyHost: document.getElementById('proxyHost').value,
+        proxyPort: document.getElementById('proxyPort').value,
+        proxyUser: document.getElementById('proxyUser').value,
+        proxyPass: document.getElementById('proxyPass').value,
+        spawnDelay: document.getElementById('spawnDelay').value,
+        reconnectDelay: 10000,
+        actionInterval: 3000,
+        chatInterval: 15000
+      }
+
+      ipcRenderer.send('start-test', config)
+    })
+
+    btnStop.addEventListener('click', () => {
+      ipcRenderer.send('stop-test')
+    })
+
+    btnClearConsole.addEventListener('click', () => {
+      consoleDiv.innerHTML = ''
+    })
+
+    ipcRenderer.on('log', (event, data) => {
+      const line = document.createElement('div')
+      line.className = `log-${data.type}`
+      line.innerText = `[${data.time}] ${data.msg}`
+      consoleDiv.appendChild(line)
+      consoleDiv.scrollTop = consoleDiv.scrollHeight
+    })
+
+    ipcRenderer.on('stats', (event, stats) => {
+      document.getElementById('statActive').innerText = stats.active
+      document.getElementById('statJoined').innerText = stats.totalJoined
+      document.getElementById('statErrors').innerText = stats.errors
+    })
+  </script>
+</body>
+</html>
